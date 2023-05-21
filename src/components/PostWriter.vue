@@ -1,16 +1,18 @@
 <script lang="ts" setup>
-import { TimelinePost } from '../posts'
-import { ref, onMounted, watch, watchEffect } from 'vue'
+import { Post, TimelinePost } from '../posts'
+import { ref, onMounted, watch } from 'vue'
 import { marked } from 'marked'
 import highlightjs from 'highlight.js'
 import debounce from 'lodash/debounce'
-import { usePosts } from '../stores/posts'
-import { useRouter } from 'vue-router'
+import { useUsers } from '../stores/users'
+import { defineEmits } from 'vue'
 
-const props = defineProps<{ post: TimelinePost }>()
-const router = useRouter()
+const props = defineProps<{ post: TimelinePost | Post }>()
+const emit = defineEmits<{
+  (event: 'submit', post: Post): void
+}>()
 
-const posts = usePosts()
+const usersStore = useUsers()
 
 const title = ref(props.post.title)
 const content = ref(props.post.markdown)
@@ -27,7 +29,7 @@ const parseHtml = (markdown: string) => {
         return highlightjs.highlightAuto(code).value
       },
     },
-    (err, parseResult) => {
+    (_, parseResult) => {
       html.value = parseResult
     }
   )
@@ -35,7 +37,7 @@ const parseHtml = (markdown: string) => {
 
 watch(
   content,
-  debounce((newContent, oldContent) => {
+  debounce((newContent, ) => {
     parseHtml(newContent)
   }, 250),
   {
@@ -58,17 +60,24 @@ const handleInput = () => {
 }
 
 const handleClick = async () => {
-  const newPost: TimelinePost = {
+  if (!usersStore.currentUserId) {
+    throw Error('User not logged in')
+  }
+  const newPost: Post = {
     ...props.post,
+    created:
+      typeof props.post.created === 'string'
+        ? props.post.created
+        : props.post.created.toISO(),
+    authorId: usersStore.currentUserId,
     title: title.value,
     markdown: content.value,
     html: html.value,
   }
-  const res = await posts.createPost(newPost)
-  console.log('🚀 ~ file: PostWriter.vue:68 ~ handleClick ~ res:', res)
-  router.push('/')
+  emit('submit', newPost)
 }
 </script>
+
 <template>
   <div class="columns">
     <div class="column">

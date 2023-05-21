@@ -28,7 +28,7 @@ export const usePosts = defineStore('post', {
       this.selectedPeriod = period
     },
     async fetchPost() {
-      const res = await window.fetch('http://localhost:8001/posts')
+      const res = await window.fetch('/api/posts')
       const data = (await res.json()) as Post[]
       await delay()
       let ids: string[] = []
@@ -37,21 +37,35 @@ export const usePosts = defineStore('post', {
         ids.push(post.id)
         all.set(post.id, post)
       }
-
       this.ids = ids
       this.all = all
     },
-    async createPost(post: TimelinePost) {
-      const body = JSON.stringify({ ...post, created: post.created.toISO() })
-      return window.fetch('http://localhost:8001/posts', {
+
+    async createPost(post: Post) {
+      const body = JSON.stringify({ ...post })
+      await window.fetch('/api/posts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body,
       })
+      return this.fetchPost()
+    },
+
+    async updatePost(post: Post) {
+      const body = JSON.stringify({ ...post })
+      await window.fetch('/api/posts', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body,
+      })
+      return this.fetchPost()
     },
   },
+
   getters: {
     filteredPosts: (state: PostsState): TimelinePost[] => {
       const mappedToTimelinePost = state.ids.map((id) => {
